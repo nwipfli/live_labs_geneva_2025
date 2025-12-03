@@ -58,6 +58,7 @@ PROJECT_IDS=(
 # Set your desired configuration
 REGION="us-central1"
 TEMPLATE_DISPLAY_NAME="standard-runtime-template"
+NETWORK="default"
 #MACHINE_TYPE="e2-standard-4"
 
 # --- EXECUTION LOOP ---
@@ -77,29 +78,34 @@ for PROJECT in "${PROJECT_IDS[@]}"; do
 
     sleep 20
 
-    # Create the Notebook Runtime Template
+    # Create the Notebook Runtime
     echo "Creating Runtime Template..."
-    gcloud ai notebook-runtime-templates create \
-        --project="$PROJECT" \
-        --region="$REGION" \
-        --display-name="$TEMPLATE_DISPLAY_NAME" \
-        --machine-type="$MACHINE_TYPE" \
-        --quiet # Suppresses interactive prompts
-
-
-    gcloud colab runtime-templates create --display-name="DISPLAY_NAME" \
+    gcloud colab runtime-templates create --display-name="standard-runtime-template" \
         --project="$PROJECT" \
         --region="$REGION" \
         --machine-type="e2-standard-4" \
-        #--accelerator-type=ACCELERATOR_TYPE \
-        #--accelerator-count=ACCELERATOR_COUNT
-        --quiet # Suppresses interactive prompts
-
-    
+        --network="$NETWORK"
 
     if [ $? -eq 0 ]; then
         echo "SUCCESS: Template created for $PROJECT"
     else
         echo "ERROR: Failed to create template for $PROJECT"
     fi
+
+    TEMPLATE_ID=`gcloud colab runtime-templates list --region=us-central1 --project="$PROJECT" | awk '/^ID:/ {print $2}'`
+
+    gcloud colab runtimes create --display-name="standard-runtime" \
+        --runtime-template="$TEMPLATE_ID" \
+        --project="$PROJECT" \
+        --region="$REGION" \
+        --labels="aiplatform.googleapis.com/notebook_runtime_out_of_org_warning=ack"
+    
+    if [ $? -eq 0 ]; then
+        echo "SUCCESS: Runtime created for $PROJECT"
+    else
+        echo "ERROR: Failed to create the runtime for $PROJECT"
+    fi
+
+
+    
 done
